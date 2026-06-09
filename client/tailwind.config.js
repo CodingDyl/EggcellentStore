@@ -30,6 +30,20 @@ module.exports = {
       boxShadow: {
         glow: '0 0 60px -12px rgba(240, 180, 41, 0.35)',
       },
+      keyframes: {
+        'toast-in': {
+          '0%':   { opacity: '0', transform: 'translateX(0.75rem) translateY(-0.25rem)' },
+          '100%': { opacity: '1', transform: 'translateX(0)       translateY(0)' },
+        },
+        'toast-out': {
+          '0%':   { opacity: '1', transform: 'translateX(0)       translateY(0)' },
+          '100%': { opacity: '0', transform: 'translateX(0.75rem) translateY(-0.25rem)' },
+        },
+      },
+      animation: {
+        'toast-in':  'toast-in  0.22s ease-out',
+        'toast-out': 'toast-out 0.18s ease-in forwards',
+      },
     },
   },
   plugins: [],

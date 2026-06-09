@@ -1,6 +1,7 @@
-const { initialChickens } = require('./constants');
+const { initialChickens, initialEggs } = require('./constants');
 
 var chickens = JSON.parse(JSON.stringify(initialChickens));
+var stock = initialEggs.count;
 
 var chicken_year = 100;
 var chicken_death_age = 10;
@@ -19,7 +20,6 @@ function mergeChickenWithMetadata(inputChicken, metadata) {
         name: inputChicken.name,
         age: inputChicken.age,
         sex: inputChicken.sex,
-        eggs: metadata.eggs !== undefined ? metadata.eggs : 0,
         story: metadata.story || '',
         imageUrl: metadata.imageUrl || ''
     };
@@ -34,44 +34,50 @@ function formatDisplayName(slug) {
         .join(" ");
 }
 
-function isChickenAlive(chicken, days) {
-    return chicken.age + (days / chicken_year) < chicken_death_age;
+// Days until this hen reaches chicken_death_age
+function getMaxLayingDays(chicken) {
+    return Math.max(0, (chicken_death_age - chicken.age) * chicken_year);
 }
 
-function getExpectedEggs(days) {
+// Formula: a hen lays one egg every (1 + D × 0.01) days, where D = age in days
+function getLayingInterval(chicken) {
+    return 1 + chicken.age * chicken_year * 0.01;
+}
+
+// Eggs a single hen produces over 'days' days (capped by her remaining lifespan)
+function getHenEggs(chicken, days) {
+    if (chicken.sex !== 'f') return 0;
+    var activeDays = Math.min(days, getMaxLayingDays(chicken));
+    if (activeDays <= 0) return 0;
+    return Math.floor(activeDays / getLayingInterval(chicken));
+}
+
+// Total new eggs from all hens across 'days' days
+function getPredictedYield(days) {
     var daysAhead = Number(days);
     if (!Number.isFinite(daysAhead) || daysAhead < 0) {
         throw new Error('Invalid day count');
     }
+    return chickens.reduce(function (total, chicken) {
+        return total + getHenEggs(chicken, daysAhead);
+    }, 0);
+}
 
-    var projectedNewEggs = 1 + daysAhead * 0.01;
-    var expected_stock = 0;
+function getStockForecast(days) {
+    var predictedYield = getPredictedYield(days);
 
-    chickens.forEach(function (chicken) {
-        if (chicken.sex !== "f") {
-            return;
-        }
+    return {
+        predictedYield: predictedYield,
+        projectedForecast: getEggsInStock() + predictedYield
+    };
+}
 
-        if (isChickenAlive(chicken, daysAhead)) {
-            expected_stock += chicken.eggs + projectedNewEggs;
-            return;
-        }
-
-        // Dead by day T: keep eggs already in the nest, but no new laying
-        expected_stock += chicken.eggs;
-    });
-
-    return expected_stock;
+function getExpectedEggs(days) {
+    return getStockForecast(days).projectedForecast;
 }
 
 function getEggsInStock() {
-    var eggs_in_stock = 0;
-    chickens.forEach(chicken => {
-        if (chicken.sex === "f") {
-            eggs_in_stock += chicken.eggs;
-        }
-    });
-    return eggs_in_stock;
+    return stock;
 }
 
 function removeStock(eggsToRemove) {
@@ -80,22 +86,12 @@ function removeStock(eggsToRemove) {
         throw new Error('Invalid egg quantity');
     }
 
-    var stock = getEggsInStock();
     if (stock < amount) {
         throw new Error('Not enough eggs in stock');
     }
 
-    var remaining = amount;
-    chickens.forEach(function (chicken) {
-        if (chicken.sex !== "f" || remaining <= 0) {
-            return;
-        }
-        var take = Math.min(chicken.eggs, remaining);
-        chicken.eggs -= take;
-        remaining -= take;
-    });
-
-    return getEggsInStock();
+    stock -= amount;
+    return stock;
 }
 
 function getProducers() {
@@ -109,8 +105,7 @@ function getProducers() {
                 name: formatDisplayName(chicken.name),
                 age: chicken.age,
                 story: chicken.story,
-                imageUrl: chicken.imageUrl,
-                eggsInNest: chicken.eggs
+                imageUrl: chicken.imageUrl
             };
         });
 }
@@ -141,12 +136,16 @@ function resetChickens(inputChickens) {
         chickens.push(chicken);
     });
 
+    stock = initialEggs.count;
+
     return toResetResponse(resetState);
 }
 
 module.exports = {
     chickens,
     getExpectedEggs,
+    getPredictedYield,
+    getStockForecast,
     getEggsInStock,
     resetChickens,
     removeStock,

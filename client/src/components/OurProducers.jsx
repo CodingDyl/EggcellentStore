@@ -15,7 +15,7 @@ function mapProducerToRailItem(producer) {
     title: producer.name,
     description: producer.story,
     imageSrc: producer.imageUrl,
-    meta: `${formatAge(producer.age)} · ${producer.eggsInNest} eggs in nest`,
+    meta: formatAge(producer.age),
   };
 }
 

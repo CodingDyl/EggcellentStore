@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { OurProducers } from 'components/OurProducers';
+import { Toast } from 'components/Toast';
 
 const serverUrl = 'http://localhost:8080';
 
@@ -14,15 +15,25 @@ function parseEggCount(responseData) {
 
 function App() {
   const [stock, setStock] = useState(0);
-  const [forecast, setForecast] = useState(null);
+  const [predictedYield, setPredictedYield] = useState(null);
+  const [projectedForecast, setProjectedForecast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [days, setDays] = useState(7);
   const [order, setOrder] = useState('');
-  const [orderError, setOrderError] = useState(null);
-  const [orderSuccess, setOrderSuccess] = useState(null);
+  const [toast, setToast] = useState(null);
   const [orderPending, setOrderPending] = useState(false);
   const [resetPending, setResetPending] = useState(false);
+  const toastIdRef = useRef(0);
+
+  const showToast = useCallback((type, message) => {
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, type, message });
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    setToast(null);
+  }, []);
 
   const fetchStock = useCallback(async () => {
     const response = await axios.get(`${serverUrl}/stock`);
@@ -31,7 +42,8 @@ function App() {
 
   const fetchForecast = useCallback(async (dayCount) => {
     const response = await axios.get(`${serverUrl}/stock/${dayCount}`);
-    setForecast(parseEggCount(response.data));
+    setPredictedYield(Number(response.data.predictedYield));
+    setProjectedForecast(Number(response.data.projectedForecast));
   }, []);
 
   useEffect(() => {
@@ -68,8 +80,6 @@ function App() {
 
   const handleOrderChange = (event) => {
     setOrder(event.target.value);
-    setOrderError(null);
-    setOrderSuccess(null);
   };
 
   const handleOrder = async (event) => {
@@ -77,13 +87,11 @@ function App() {
     const eggs = Number(order);
 
     if (!eggs || eggs <= 0) {
-      setOrderError('Enter a valid number of eggs to order.');
+      showToast('error', 'Enter a valid number of eggs to order.');
       return;
     }
 
     setOrderPending(true);
-    setOrderError(null);
-    setOrderSuccess(null);
 
     try {
       const orderId = Date.now();
@@ -91,14 +99,14 @@ function App() {
         `${serverUrl}/order/${orderId}`,
         { order: { eggs } }
       );
-      setOrderSuccess(`Order placed — ${eggs} eggs heading out.`);
+      showToast('success', `Order placed — ${eggs} eggs heading out.`);
       setOrder('');
       await fetchStock();
     } catch (err) {
       if (err.response?.status === 404) {
-        setOrderError('Not enough eggs in stock for that order.');
+        showToast('error', 'Not enough eggs in stock for that order.');
       } else {
-        setOrderError('Order failed. Check your connection and try again.');
+        showToast('error', 'Order failed. Check your connection and try again.');
       }
     } finally {
       setOrderPending(false);
@@ -107,8 +115,6 @@ function App() {
 
   const reset = async () => {
     setResetPending(true);
-    setOrderError(null);
-    setOrderSuccess(null);
 
     try {
       await axios.post(`${serverUrl}/reset`);
@@ -124,6 +130,10 @@ function App() {
   };
 
   return (
+    <>
+    {toast && (
+      <Toast key={toast.id} toast={toast} onDismiss={dismissToast} />
+    )}
     <div className="min-h-screen px-4 py-10 sm:px-6 lg:px-8">
       <main className="mx-auto max-w-5xl">
         <header className="mb-10 text-center">
@@ -176,7 +186,7 @@ function App() {
               Forecast
             </h2>
             <p className="mt-1 text-sm text-cream-200/60">
-              Expected stock after a number of days.
+              Predicted new laying and total projected stock.
             </p>
 
             <label htmlFor="days-input" className="mt-5 block text-sm font-medium text-cream-200/80">
@@ -191,11 +201,21 @@ function App() {
               className="input-field mt-2"
             />
 
-            <div className="mt-5 rounded-xl border border-barn-700/50 bg-barn-950/40 px-4 py-3">
-              <p className="text-xs uppercase tracking-wider text-cream-200/50">Projected stock</p>
-              <p className="mt-1 font-display text-3xl font-semibold text-cream-100">
-                {loading || forecast === null ? '—' : forecast.toLocaleString()}
-              </p>
+            <div className="mt-5 space-y-3">
+              <div className="rounded-xl border border-barn-700/50 bg-barn-950/40 px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-cream-200/50">Predicted yield</p>
+                <p className="mt-1 font-display text-2xl font-semibold text-yolk-400">
+                  {loading || predictedYield === null ? '—' : predictedYield.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-cream-200/45">New eggs from living hens over {days} days</p>
+              </div>
+              <div className="rounded-xl border border-barn-700/50 bg-barn-950/40 px-4 py-3">
+                <p className="text-xs uppercase tracking-wider text-cream-200/50">Projected forecast</p>
+                <p className="mt-1 font-display text-3xl font-semibold text-cream-100">
+                  {loading || projectedForecast === null ? '—' : projectedForecast.toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-cream-200/45">Current stock + predicted yield</p>
+              </div>
             </div>
           </section>
 
@@ -220,17 +240,6 @@ function App() {
                 placeholder="e.g. 12"
                 className="input-field mt-2"
               />
-
-              {orderError && (
-                <p role="alert" className="mt-3 text-sm text-red-300">
-                  {orderError}
-                </p>
-              )}
-              {orderSuccess && (
-                <p role="status" className="mt-3 text-sm text-emerald-300">
-                  {orderSuccess}
-                </p>
-              )}
 
               <button
                 type="submit"
@@ -257,6 +266,7 @@ function App() {
         <OurProducers />
       </main>
     </div>
+    </>
   );
 }
 

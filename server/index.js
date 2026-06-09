@@ -1,4 +1,4 @@
-const { chickens, getExpectedEggs, getEggsInStock, resetChickens, removeStock, getProducers } = require('./chicken_store');
+const { getStockForecast, getEggsInStock, resetChickens, removeStock, getProducers } = require('./chicken_store');
 
 const express = require('express');
 const cors = require('cors');
@@ -25,8 +25,7 @@ app.post('/reset', (req, res) => {
 //stock endpoints
 
 app.get('/stock', (req, res) => {
-    var eggsInStock = getEggsInStock();
-    res.send('eggs: ' + Math.round(eggsInStock));
+    res.json({ eggs: Math.round(getEggsInStock()) });
 });
 
 app.get('/stock/:days', (req, res) => {
@@ -37,8 +36,11 @@ app.get('/stock/:days', (req, res) => {
     }
 
     try {
-        var eggsInStock = getExpectedEggs(days);
-        res.json({ eggs: Math.round(eggsInStock) });
+        var forecast = getStockForecast(days);
+        res.json({
+            predictedYield: Math.round(forecast.predictedYield),
+            projectedForecast: Math.round(forecast.projectedForecast)
+        });
     } catch (err) {
         res.status(400).json({ error: err.message });
     }
