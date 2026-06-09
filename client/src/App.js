@@ -86,18 +86,20 @@ function App() {
     setOrderSuccess(null);
 
     try {
-      const response = await axios.post(`${serverUrl}/order/${eggs}`);
-      const message = String(response.data);
-
-      if (message.toLowerCase().includes('successful')) {
-        setOrderSuccess(`Order placed — ${eggs} eggs heading out.`);
-        setOrder('');
-        await fetchStock();
-      } else {
+      const orderId = Date.now();
+      await axios.post(
+        `${serverUrl}/order/${orderId}`,
+        { order: { eggs } }
+      );
+      setOrderSuccess(`Order placed — ${eggs} eggs heading out.`);
+      setOrder('');
+      await fetchStock();
+    } catch (err) {
+      if (err.response?.status === 404) {
         setOrderError('Not enough eggs in stock for that order.');
+      } else {
+        setOrderError('Order failed. Check your connection and try again.');
       }
-    } catch {
-      setOrderError('Order failed. Check your connection and try again.');
     } finally {
       setOrderPending(false);
     }

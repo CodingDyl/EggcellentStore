@@ -31,21 +31,36 @@ app.get('/stock', (req, res) => {
 
 app.get('/stock/:days', (req, res) => {
     var days = Number(req.params.days);
-    var eggsInStock = getExpectedEggs(days);
-    res.json({ eggs: Math.round(eggsInStock) });
+
+    if (!Number.isFinite(days) || days < 0) {
+        return res.status(400).json({ error: 'Invalid day count' });
+    }
+
+    try {
+        var eggsInStock = getExpectedEggs(days);
+        res.json({ eggs: Math.round(eggsInStock) });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
 });
 
 //order endpoints
 
-app.post('/order/:eggs', (req, res) => {
-    var eggs = req.params.eggs;
-    var eggsInStock = getEggsInStock();
-    if (eggsInStock >= eggs) {
-        removeStock(eggs);
-        res.send('Order successful');
-    } else {
-        res.send('Order failed');
+app.post('/order/:orderId', (req, res) => {
+    var eggs = Number(req.body && req.body.order && req.body.order.eggs);
+    var orderResponse = { order: { eggs: eggs } };
+
+    if (!Number.isFinite(eggs) || eggs <= 0) {
+        return res.status(400).json({ error: 'Invalid order body. Expected { "order": { "eggs": N } }' });
     }
+
+    var eggsInStock = getEggsInStock();
+    if (eggsInStock < eggs) {
+        return res.status(404).json(orderResponse);
+    }
+
+    removeStock(eggs);
+    res.status(201).json(orderResponse);
 });
 
 // fetch chickens endpoints
