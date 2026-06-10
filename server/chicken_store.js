@@ -6,32 +6,13 @@ var stock = initialEggs.count;
 var chicken_year = 100;
 var chicken_death_age = 10;
 
-function buildMetadataLookup() {
-    var lookup = {};
-    initialChickens.forEach(function (chicken) {
-        lookup[chicken.name] = chicken;
-    });
-    return lookup;
-}
-
-function mergeChickenWithMetadata(inputChicken, metadata) {
-    return {
-        id: metadata.id || inputChicken.name,
-        name: inputChicken.name,
-        age: inputChicken.age,
-        sex: inputChicken.sex,
-        story: metadata.story || '',
-        imageUrl: metadata.imageUrl || ''
-    };
-}
-
 function formatDisplayName(slug) {
     return slug
-        .split("-")
+        .split('-')
         .map(function (part) {
             return part.charAt(0).toUpperCase() + part.slice(1);
         })
-        .join(" ");
+        .join(' ');
 }
 
 // Days until this hen reaches chicken_death_age
@@ -65,15 +46,10 @@ function getPredictedYield(days) {
 
 function getStockForecast(days) {
     var predictedYield = getPredictedYield(days);
-
     return {
         predictedYield: predictedYield,
         projectedForecast: getEggsInStock() + predictedYield
     };
-}
-
-function getExpectedEggs(days) {
-    return getStockForecast(days).projectedForecast;
 }
 
 function getEggsInStock() {
@@ -85,11 +61,9 @@ function removeStock(eggsToRemove) {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error('Invalid egg quantity');
     }
-
     if (stock < amount) {
         throw new Error('Not enough eggs in stock');
     }
-
     stock -= amount;
     return stock;
 }
@@ -97,7 +71,7 @@ function removeStock(eggsToRemove) {
 function getProducers() {
     return chickens
         .filter(function (chicken) {
-            return chicken.sex === "f";
+            return chicken.sex === 'f';
         })
         .map(function (chicken) {
             return {
@@ -110,41 +84,18 @@ function getProducers() {
         });
 }
 
-function toResetResponse(chickenList) {
-    return chickenList.map(function (chicken) {
-        return {
-            name: chicken.name,
-            age: chicken.age,
-            sex: chicken.sex
-        };
-    });
-}
-
-function resetChickens(inputChickens) {
-    var metadataByName = buildMetadataLookup();
-    var source = Array.isArray(inputChickens) && inputChickens.length > 0
-        ? inputChickens
-        : initialChickens;
-
-    var resetState = source.map(function (inputChicken) {
-        var metadata = metadataByName[inputChicken.name] || {};
-        return mergeChickenWithMetadata(inputChicken, metadata);
-    });
-
+function resetChickens() {
     chickens.length = 0;
-    resetState.forEach(function (chicken) {
-        chickens.push(chicken);
+    initialChickens.forEach(function (chicken) {
+        chickens.push(Object.assign({}, chicken));
     });
-
     stock = initialEggs.count;
-
-    return toResetResponse(resetState);
+    return chickens.map(function (chicken) {
+        return { name: chicken.name, age: chicken.age, sex: chicken.sex };
+    });
 }
 
 module.exports = {
-    chickens,
-    getExpectedEggs,
-    getPredictedYield,
     getStockForecast,
     getEggsInStock,
     resetChickens,

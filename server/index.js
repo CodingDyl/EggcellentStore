@@ -2,27 +2,17 @@ const { getStockForecast, getEggsInStock, resetChickens, removeStock, getProduce
 
 const express = require('express');
 const cors = require('cors');
+
 const app = express();
 const port = 8080;
-
-
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
 
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hello World');
-});
-
 app.post('/reset', (req, res) => {
-    var resetState = resetChickens(req.body);
+    var resetState = resetChickens();
     res.status(205).json(resetState);
 });
-
-//stock endpoints
 
 app.get('/stock', (req, res) => {
     res.json({ eggs: Math.round(getEggsInStock()) });
@@ -46,8 +36,6 @@ app.get('/stock/:days', (req, res) => {
     }
 });
 
-//order endpoints
-
 app.post('/order/:orderId', (req, res) => {
     var eggs = Number(req.body && req.body.order && req.body.order.eggs);
     var orderResponse = { order: { eggs: eggs } };
@@ -56,8 +44,7 @@ app.post('/order/:orderId', (req, res) => {
         return res.status(400).json({ error: 'Invalid order body. Expected { "order": { "eggs": N } }' });
     }
 
-    var eggsInStock = getEggsInStock();
-    if (eggsInStock < eggs) {
+    if (getEggsInStock() < eggs) {
         return res.status(404).json(orderResponse);
     }
 
@@ -65,8 +52,10 @@ app.post('/order/:orderId', (req, res) => {
     res.status(201).json(orderResponse);
 });
 
-// fetch chickens endpoints
-
 app.get('/producers', (req, res) => {
     res.json(getProducers());
+});
+
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });

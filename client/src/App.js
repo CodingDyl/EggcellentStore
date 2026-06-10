@@ -5,12 +5,8 @@ import { Toast } from 'components/Toast';
 
 const serverUrl = 'http://localhost:8080';
 
-function parseEggCount(responseData) {
-  if (responseData && typeof responseData === 'object' && 'eggs' in responseData) {
-    return Number(responseData.eggs);
-  }
-  const match = String(responseData).match(/(\d+)/);
-  return match ? Number(match[1]) : 0;
+function parseEggCount(data) {
+  return Number(data?.eggs ?? 0);
 }
 
 function App() {
